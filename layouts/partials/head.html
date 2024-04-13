@@ -1,0 +1,27 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+
+{{ if .IsHome }}
+<title>{{ .Title }}</title>
+{{ else }}
+<title>{{ printf "%s | %s" .Title site.Title }}</title>
+{{ end }}
+
+{{ $normalize := resources.Get "css/normalize.css" }}
+{{ $skeleton := resources.Get "css/skeleton.css" }}
+{{ $styles := slice $normalize $skeleton | resources.Concat "styles.css" }}
+{{- with $styles }}
+  {{- with . | minify | fingerprint }}
+    <link rel="stylesheet" href="{{ .RelPermalink }}" integrity="{{ .Data.Integrity }}" crossorigin="anonymous">
+  {{- end }}
+{{- end }}
+
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+<script>
+  MathJax = {
+    tex: {
+      displayMath: [['$$', '$$']],
+      inlineMath: [['$', '$']],
+    }
+  };
+</script>

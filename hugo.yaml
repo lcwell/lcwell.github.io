@@ -1,0 +1,19 @@
+baseURL: 'https://tensorial.org/'
+title: tensorial.org
+
+params:
+  title: tensorial
+  subtitle: Luca's research and project logs.
+
+markup:
+  goldmark:
+    extensions:
+      passthrough:
+        delimiters: 
+          block:
+          - - $$
+            - $$
+          inline:
+          - - $
+            - $
+        enable: true

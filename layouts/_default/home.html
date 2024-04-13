@@ -1,0 +1,20 @@
+{{ define "main" }}
+
+<h1 style="font-family: monospace;">
+  {{ .Site.Params.title }}
+</h1>
+
+<p>
+  {{ .Site.Params.subtitle }}
+</p>
+
+<ul>
+  {{ range site.RegularPages.ByDate.Reverse }}
+    <li>
+      {{ .Date | time.Format ":date_medium" }}:
+      <a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a>
+    </li>
+  {{ end }}
+</ul>
+
+{{ end }}
