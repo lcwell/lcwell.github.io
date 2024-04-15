@@ -7,18 +7,18 @@ draft: false
 In this note we first train a simple feed-forward neural net on
 MNIST, and then investigate compression of the learnt weights
 using techniques presented in the paper:
-
 Additionally, we pose the question of whether training with L1 or L2 
 penalties will improve the compression rates,
 and we try to find empirical relations to a notion of effective rank 
 of the the weight matrix.
-The complete code can is available at 
+
+The complete code is available at 
 <https://github.com/lcwell/compressing-weights-with-randomness>.
 
 ## Step 1: Data, architecture and training
 
 All models follow a simple baseline skeleton with variations.
-It is defined in the class `MnistFCNet` in [repo/mystuff.py](https://github.com/lcwell/compressing-weights-with-randomness/blob/main/mystuff.py).
+It is defined in the class `MnistFCNet` in [mystuff.py](https://github.com/lcwell/compressing-weights-with-randomness/blob/main/mystuff.py).
 Here is a brief summary.
 
 ---
@@ -57,7 +57,7 @@ The baseline model uses a dropout probability of 0.5.
 We simply use negative log likelihood (NLL).
 Note that this setup, i.e. NLL with the log softmax activation of output layer, 
 is equivalent to normal softmax with cross-entropy loss, 
-but is usually superior due to more favorable optimization behavior and better
+but is usually superior due to more favorable optimization bias and better
 numerical stability.
 
 **Optimization**:
@@ -93,7 +93,7 @@ $$
 $$
 with the convention $0 \log(0) = 0$.
 This has a straightforward interpretation and 
-good properties (cf. the paper or this blog post).
+good properties.
 
 In the end, three models have been chosen for further investigation
 (see 
@@ -120,7 +120,7 @@ via an L1 penalty. This reduces the effective rank by a factor of 7 w.r.t. the b
 
 Some further observations during the training:
 
-- SGD (also as predicted in predicted in the paper) reduces the effective rank 
+- SGD (also as predicted in the paper) reduces the effective rank 
   on its own. 
   Indeed, checking the [notebook outputs](https://github.com/lcwell/compressing-weights-with-randomness/blob/main/models.ipynb)
   reveals that this happens in every single training epoch.
@@ -173,7 +173,7 @@ Observations:
 
 - The effective rank is a quite pessimistic estimate for the minimal compression rank in this case.
 - All models allow for strong compression: even when the loss increases they maintain a stable level of accuracy (which can be attributed to the nature of classification problems; a regression task would probably have suffered more notably).
-- Being able to compress down to a rank as low as 16 hints towards strong over-parameterization of the models. It's very likely that dropout layers and the implicit regularization effects of SGD are responsible for preventing the model from over-fitting.
+- Being able to compress down to a rank as low as 16 hints towards strong over-parameterization of the models. It's very likely that dropout layers and the implicit regularization effects of SGD are responsible for preventing the model from overfitting in the first place.
 - The best stability is presented in `model6` which uses L2 weight decay. The L1 penalized `model10` seems to stabilize only after the effective rank, and the baseline `model0` shows the least stability under compression, especially in the terms of the loss.
 - An interesting idea to investigate would be to *train* the model in such a low-rank configuration: instead of learning a full linear layer $Wx + b$, one could drectly learn $U V x + b$.
 
@@ -204,6 +204,8 @@ smaller matrix $B = \tilde{U} S V$, greatly reducing
 computational costs.
 Then setting $U \gets Q \tilde{U} S$, 
 we obtain another low-rank approximation $W \cong U V$.
+The algorithm is implemented in 
+[this notebook](https://github.com/lcwell/compressing-weights-with-randomness/blob/main/random_compression.ipynb).
 
 As before, we plot accuracy and loss against the rank $r$
 with the same conventions as before.
@@ -216,6 +218,7 @@ on the compression.
 Observations:
 
 - The randomness kicks in the most in the low-rank regime and then stabilizes after passing the effective rank.
-- In fact, the effective rank seems to be a much better estimate for the random case than before. This might be worth further research.
-- The baseline `model0` allows for little to none compression without significantly sacrificing performance.
+- In fact, the effective rank seems to be a much better estimate for the random case than before. This might be worth further investigation.
+- All models are less compressible with this method than with the deterministic SVD, which, however, is more demanding in terms of computation.
+- The baseline `model0` allows for little to no compression without significantly sacrificing performance.
 - Both the L2 penalized `model6` and the L1 penalized `model10` allow for much more compression, but `model6` seems to offer more stability. In both the deterministic and the probabilistic method, weight decay seems to behave more nicely with regard to compression, which strengthens the results of Poggio et al.
