@@ -1,26 +1,24 @@
 ---
 title: Compressing learnt weights using randomness
-date: 2024-04-13T03:17:03+02:00
-draft: true
+date: 2024-04-15T00:03:00+02:00
+draft: false
 ---
 
 In this note we first train a simple feed-forward neural net on
 MNIST, and then investigate compression of the learnt weights
 using techniques presented in the paper:
 
-> Halko, N., Martinsson, P. G., & Tropp, J. A. (2011). Finding structure with randomness: Probabilistic algorithms for constructing approximate matrix decompositions. SIAM review, 53(2), 217-288. [arXiv:0909.4061](https://arxiv.org/abs/0909.4061).
-
 Additionally, we pose the question of whether training with L1 or L2 
 penalties will improve the compression rates,
 and we try to find empirical relations to a notion of effective rank 
 of the the weight matrix.
-The complete code can is available at
-**TODO**: insert repo
+The complete code can is available at 
+<https://github.com/lcwell/compressing-weights-with-randomness>.
 
 ## Step 1: Data, architecture and training
 
 All models follow a simple baseline skeleton with variations.
-It is defined in the class `MnistFCNet` in **TODO**.github.com/lcwell/mystuff.py...
+It is defined in the class `MnistFCNet` in [repo/mystuff.py](https://github.com/lcwell/compressing-weights-with-randomness/blob/main/mystuff.py).
 Here is a brief summary.
 
 ---
@@ -31,14 +29,25 @@ The grayscale images are transformed to flat vectors of dimension 784 and
 normalized so that each pixel is in the range $[0,1]$.
 Moreover, we have applied the transformation $x \gets (x - \mu) / \sigma$
 with values $\mu = 0.1307$ and $\sigma = 0.3881$.
-These constants have been used for the [MNIST example](TODO)
+These constants have been used for the 
+[MNIST example](https://github.com/pytorch/examples/tree/main/mnist)
 of the official PyTorch GitHub repository, and seem to slightly speed up the training.
 
 **Architecture**:
 The model follows a simple feed-forward architecture.
-In PyTorch jargon:
-```python
-TODO
+In PyTorch-like jargon:
+```
+MnistFCNet(
+  (flatten):     Flatten(start_dim=1, end_dim=-1)
+  (layer1):      Linear(in_features=784, out_features=1000, bias=True)
+  (activation1): ReLU()
+  (dropout1):    Dropout(p=0.5, inplace=False)
+  (layer2):      Linear(in_features=1000, out_features=1000, bias=True)
+  (activation2): ReLU()
+  (dropout2):    Dropout(p=0.5, inplace=False)
+  (layer3):      Linear(in_features=1000, out_features=10, bias=True)
+  (activation3): LogSoftmax(dim=1)
+)
 ```
 ReLU activations are a solid default choice, and
 the dropout layers have been added in order to avoid overfitting.
@@ -54,7 +63,7 @@ numerical stability.
 **Optimization**:
 We only use Adam here.
 The baseline learning rate is 0.001, which is multiplied by 
-a default factor of $\gamma = 0.7$ each epoch (see [PyTorch: StepLR](TODO)).
+a default factor of $\gamma = 0.7$ each epoch (see [PyTorch: StepLR](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.StepLR.html)).
 The weights will be penalized by their L1 or L2 norm, but 
 not for the baseline model.
 The default batch size is 64.
@@ -68,7 +77,7 @@ With compression in mind, we hypothesize that a suitable notion of
 *effective rank* will be highly useful to monitor during training.
 We chose the one introduced in
 
-> TODO
+> Roy, O., & Vetterli, M. (2007, September). The effective rank: A measure of effective dimensionality. In 2007 15th European signal processing conference (pp. 606-610). IEEE.
 
 It is defined as follows: 
 let $s_i$ be the sequence of singular values
@@ -87,7 +96,9 @@ This has a straightforward interpretation and
 good properties (cf. the paper or this blog post).
 
 In the end, three models have been chosen for further investigation
-(see [Notebook](TODO) for full detail of the parameters).
+(see 
+[notebook outputs](https://github.com/lcwell/compressing-weights-with-randomness/blob/main/models.ipynb)
+for full detail of the parameters).
 In the table below both loss and accuracy refer to the score
 on the test set.
 
@@ -111,8 +122,8 @@ Some further observations during the training:
 
 - SGD (also as predicted in predicted in the paper) reduces the effective rank 
   on its own. 
-  Indeed, checking the outputs of the notebook [TODO]() reveals that this happens 
-  in every single training epoch.
+  Indeed, checking the [notebook outputs](https://github.com/lcwell/compressing-weights-with-randomness/blob/main/models.ipynb)
+  reveals that this happens in every single training epoch.
 - Lower dropout probabilities strengthen the decline of the rank per epoch, 
   higher dropout weakens it.
 
@@ -130,7 +141,7 @@ matrix with entries $s_i$.
 These values are non-negative and are called the singular values of $W$.
 By convention, we sort them as
 $$ s_1 \geq s_2 \geq s_3 \geq \dots $$
-In the code (i.e. [TODO]()) we wrote 
+In the code (see [notebook](https://github.com/lcwell/compressing-weights-with-randomness/blob/main/svd_compression.ipynb)) we wrote 
 $U \gets A S$ and $V \gets B^T$, resulting in a decomposition $W = UV$.
 
 The SVD is a useful tool for producing an approximation of $W$
@@ -148,23 +159,63 @@ $2 \times 1000 \times r$.
 The compression only effectively reduces the number of stored values
 if $r < 500$.
 
+In the following figure we plot accuracy and loss on the
+test set against the compression rank $r$ for all of the three models.
+The dotted red line indicates the original test loss of a given model, 
+and the dotted blue line shows the original accuracy.
+The black vertical lines show the effective rank of the original 
+weight matrix.
+All axes have the same scales to ease comparison.
 
+![SVD low-rank compression](svd_compression.png)
 
-Further remarks and ideas:
+Observations:
 
-- The presented results seem to indicate that the models are quite 
-  over-parameterized. Apparently, the implicit regularization effects 
-  of SGD and explicit ones of the dropout layers have successfully 
-  prevented the models from over-fitting.
-- At some ranks, the accuracy of the low-rank weights actually
-  (slightly) surpasses that of the original model. This hints
-  towards regulatory effects of the low-rank approximation itself 
-  and it might be worth studying these effects in-depth.
-- Since we know now that low-ranks factorizations generally suffice
-  for the problem at hand, it might be interesing to *train* the model 
-  in such a configuration: instead of learning a full linear layer $Wx + b$, 
-  one could learn $U V x + b$, where $U$ and $V$ are both low-rank as before.
+- The effective rank is a quite pessimistic estimate for the minimal compression rank in this case.
+- All models allow for strong compression: even when the loss increases they maintain a stable level of accuracy (which can be attributed to the nature of classification problems; a regression task would probably have suffered more notably).
+- Being able to compress down to a rank as low as 16 hints towards strong over-parameterization of the models. It's very likely that dropout layers and the implicit regularization effects of SGD are responsible for preventing the model from over-fitting.
+- The best stability is presented in `model6` which uses L2 weight decay. The L1 penalized `model10` seems to stabilize only after the effective rank, and the baseline `model0` shows the least stability under compression, especially in the terms of the loss.
+- An interesting idea to investigate would be to *train* the model in such a low-rank configuration: instead of learning a full linear layer $Wx + b$, one could drectly learn $U V x + b$.
 
 ## Step 3: Probabilistic compression
 
+Now we investigate a probabilistic method presented in
 
+> Halko, N., Martinsson, P. G., & Tropp, J. A. (2011). Finding structure with randomness: Probabilistic algorithms for constructing approximate matrix decompositions. SIAM review, 53(2), 217-288. [arXiv:0909.4061](https://arxiv.org/abs/0909.4061).
+
+We describe the chosen approach.
+First, we attempt to find a 1000-by-$r$ matrix that has 
+a range close to that of the weight matrix $W$.
+We sample a 1000-by-$r$ matrix $\Omega$
+with independent Gaussian entries 
+$\Omega_{ij} \sim \mathcal{N}(0, 1)$.
+Set $Y \gets W \Omega$, and apply the QR decomposition
+$Y = QR$.
+Then, $Q$ is an orthonormal 1000-by-$r$ matrix, that
+will satisfy
+$$
+  \| W - Q Q^T W \| < \epsilon
+$$
+with high probability given a large enough $r$ (cf. paper).
+Next, we set $B \gets Q^T W$, which is an $r$-by-1000 matrix.
+The big advantage over the non-probabilistic approach from the 
+last section is that we can now compute the SVD of the much 
+smaller matrix $B = \tilde{U} S V$, greatly reducing 
+computational costs.
+Then setting $U \gets Q \tilde{U} S$, 
+we obtain another low-rank approximation $W \cong U V$.
+
+As before, we plot accuracy and loss against the rank $r$
+with the same conventions as before.
+However, due to the randomness, we resample the 
+Gaussian matrix 4 times, to assess the effect
+on the compression.
+
+![SVD low-rank compression](random_compression.png)
+
+Observations:
+
+- The randomness kicks in the most in the low-rank regime and then stabilizes after passing the effective rank.
+- In fact, the effective rank seems to be a much better estimate for the random case than before. This might be worth further research.
+- The baseline `model0` allows for little to none compression without significantly sacrificing performance.
+- Both the L2 penalized `model6` and the L1 penalized `model10` allow for much more compression, but `model6` seems to offer more stability. In both the deterministic and the probabilistic method, weight decay seems to behave more nicely with regard to compression, which strengthens the results of Poggio et al.
